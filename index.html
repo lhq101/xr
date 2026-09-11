@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>像素情书</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#160f22;
+    --panel:#241733;
+    --panel-2:#2e1f45;
+    --pink:#ff6b9d;
+    --gold:#ffd166;
+    --cream:#f4ecd8;
+    --muted:#a893c4;
+    --pixel:4px; /* 像素单位，用来做“锯齿”描边 */
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:
+      radial-gradient(circle at 20% 10%, #2a1a40 0%, transparent 40%),
+      radial-gradient(circle at 80% 90%, #201233 0%, transparent 40%),
+      var(--bg);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'VT323', monospace;
+    color:var(--cream);
+    image-rendering:pixelated;
+    overflow:hidden;
+  }
+  /* ---- 像素方框：用多层 box-shadow 做“台阶状”描边，而不是圆角 ---- */
+  .pixel-frame{
+    position:relative;
+    width:min(92vw, 380px);
+    padding:28px 22px;
+    background:var(--panel);
+    box-shadow:
+      0 calc(var(--pixel)*1) 0 0 var(--panel-2),
+      calc(var(--pixel)*-1) 0 0 0 var(--panel-2),
+      calc(var(--pixel)*1) 0 0 0 var(--panel-2),
+      0 calc(var(--pixel)*-1) 0 0 var(--panel-2),
+      0 0 0 var(--pixel) #000;
+    min-height:420px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:16px;
+    text-align:center;
+  }
+  h1{
+    font-family:'Press Start 2P', monospace;
+    font-size:15px;
+    line-height:1.7;
+    color:var(--pink);
+    text-shadow:2px 2px 0 #000;
+    margin:0 0 6px;
+  }
+  p{font-size:20px;color:var(--muted);margin:0;line-height:1.5;}
+  .sprite{font-size:54px;filter:drop-shadow(2px 2px 0 #000);}
+  /* ---- 屏幕切换：每个 .screen 是一“页”，同一时刻只有一个 active ---- */
+  .screen{display:none;flex-direction:column;align-items:center;gap:16px;width:100%;}
+  .screen.active{display:flex;}
+  /* ---- 像素按钮 ---- */
+  .btn{
+    font-family:'Press Start 2P', monospace;
+    font-size:12px;
+    padding:14px 18px;
+    color:#1a0f27;
+    background:var(--gold);
+    border:none;
+    box-shadow:0 4px 0 0 #b8860b, 0 0 0 var(--pixel) #000;
+    cursor:pointer;
+    letter-spacing:1px;
+  }
+  .btn:active{transform:translateY(4px);box-shadow:0 0 0 0 #b8860b, 0 0 0 var(--pixel) #000;}
+  .btn.ghost{background:transparent;color:var(--cream);box-shadow:0 0 0 var(--pixel) var(--muted);}
+  .row{display:flex;gap:14px;position:relative;width:100%;justify-content:center;min-height:56px;flex-wrap:wrap;}
+  /* “No”按钮：默认正常排列，不会挡住 Yes；第一次触发后才切到 fixed 定位到处跑 */
+  #noBtn{transition:left .12s, top .12s;}
+  #noBtn.dodging{position:fixed;z-index:50;margin:0;}
+  .choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;}
+  .choice{
+    padding:14px 6px;background:var(--panel-2);
+    box-shadow:0 0 0 var(--pixel) #000;
+    cursor:pointer;font-size:18px;
+  }
+  .choice.selected{background:var(--pink);color:#1a0f27;}
+  .cal-head{display:flex;align-items:center;justify-content:space-between;width:100%;
+    font-family:'Press Start 2P', monospace;font-size:11px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;width:100%;font-size:16px;}
+  .cal-cell{padding:8px 0;background:var(--panel-2);cursor:pointer;}
+  .cal-cell.pick{background:var(--pink);color:#1a0f27;}
+  .cal-cell.empty{background:transparent;cursor:default;}
+  .envelope{font-size:64px;cursor:pointer;filter:drop-shadow(2px 2px 0 #000);}
+  .letter{font-size:18px;line-height:1.7;color:var(--cream);text-align:left;}
+</style>
+</head>
+<body>
+
+<div class="pixel-frame">
+
+  <!-- 第 1 屏：邀约 -->
+  <section class="screen active" data-screen="ask">
+    <div class="sprite">💌</div>
+    <h1>你愿意跟我出去吗？</h1>
+    <div class="row">
+      <button class="btn" id="yesBtn1">YES</button>
+      <button class="btn ghost" id="noBtn">No</button>
+    </div>
+  </section>
+
+  <!-- 第 2 屏：再确认一次 -->
+  <section class="screen" data-screen="confirm">
+    <div class="sprite">🥺</div>
+    <h1>你确定吗？</h1>
+    <div class="row" style="position:static;">
+      <button class="btn" id="yesBtn2">当然！</button>
+    </div>
+  </section>
+
+  <!-- 第 3 屏：庆祝 -->
+  <section class="screen" data-screen="celebrate">
+    <div class="sprite">🎉</div>
+    <h1>耶！</h1>
+    <p>你答应我，我真的好开心。</p >
+    <button class="btn" id="toActivity">按一下继续 →</button>
+  </section>
+
+  <!-- 第 4 屏：选活动 -->
+  <section class="screen" data-screen="activity">
+    <h1>你想一起做什么？</h1>
+    <p>选一个你想和我一起做的</p >
+    <div class="choice-grid" id="choiceGrid">
+      <div class="choice" data-v="看电影">🎬 看电影</div>
+      <div class="choice" data-v="吃火锅">🍲 吃火锅</div>
+      <div class="choice" data-v="散步">🌙 散步</div>
+      <div class="choice" data-v="打游戏">🎮 打游戏</div>
+    </div>
+    <button class="btn" id="toDate">就决定是这个了 🔒</button>
+  </section>
+
+  <!-- 第 5 屏：选日期 -->
+  <section class="screen" data-screen="date">
+    <h1>挑一天约会吧</h1>
+    <p>选一天，安排我们的小小约会吧。</p >
+    <div class="cal-head">
+      <span>‹</span><span id="calLabel">2026-08</span><span>›</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <button class="btn" id="toLetter">继续 →</button>
+  </section>
+
+  <!-- 第 6 屏：情书 -->
+  <section class="screen" data-screen="letter">
+    <div class="envelope" id="envelope">✉️</div>
+    <p id="envHint">❤ 情书.txt</p >
+    <div class="letter" id="letterBody" style="display:none;">
+      不管怎样，你都真的很可爱。<br><br>
+      不要让任何人告诉你不是，好吗？<br><br>
+      有你在，每个平凡的日子都变得特别。<br><br>
+      今天，以及每一天，我都想庆祝有你、有我们。<br><br>
+      亲亲，<br>你的他 ❤
+    </div>
+    <p id="finalLine" style="display:none;">就这样约了！💌</p >
+    <button class="btn ghost" id="replay" style="display:none;">再看一次</button>
+  </section>
+
+</div>
+
+<script>
+// ---------- 工具：屏幕切换（状态机核心） ----------
+function goTo(name){
+  document.querySelectorAll('.screen').forEach(s=>{
+    s.classList.toggle('active', s.dataset.screen === name);
+  });
+  if(name === 'ask'){
+    // 回到第一屏时，把 No 按钮重置回正常排列状态
+    const nb = document.getElementById('noBtn');
+    nb.classList.remove('dodging');
+    nb.style.left = '';
+    nb.style.top  = '';
+  }
+}
+
+// ---------- 第1屏：No 按钮闪避 ----------
+// 思路：默认 No 按钮老老实实排在 Yes 旁边（正常文档流，不会重叠）。
+// 第一次悬停/触摸时，才切换成 position:fixed，在“卡片范围”内随机跳动，
+// 这样无论手机还是电脑，第一眼看到的布局都是整齐的，不会出现遮挡。
+const noBtn = document.getElementById('noBtn');
+const frame = document.querySelector('.pixel-frame');
+function dodge(){
+  const rect = frame.getBoundingClientRect();
+  const pad  = 14;
+  const bw = noBtn.offsetWidth, bh = noBtn.offsetHeight;
+  const maxX = Math.max(rect.width  - bw - pad*2, 0);
+  const maxY = Math.max(rect.height - bh - pad*2, 0);
+  const x = rect.left + pad + Math.random()*maxX;
+  const y = rect.top  + pad + Math.random()*maxY;
+  noBtn.classList.add('dodging');
+  noBtn.style.left = x + 'px';
+  noBtn.style.top  = y + 'px';
+}
+noBtn.addEventListener('mouseenter', dodge);
+noBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); dodge(); }, {passive:false});
+noBtn.addEventListener('click', (e)=>{ e.preventDefault(); dodge(); });
+
+document.getElementById('yesBtn1').onclick = ()=>goTo('confirm');
+document.getElementById('yesBtn2').onclick = ()=>goTo('celebrate');
+document.getElementById('toActivity').onclick = ()=>goTo('activity');
+
+// ---------- 第4屏：单选卡片 ----------
+document.querySelectorAll('.choice').forEach(c=>{
+  c.onclick = ()=>{
+    document.querySelectorAll('.choice').forEach(x=>x.classList.remove('selected'));
+    c.classList.add('selected');
+  };
+});
+document.getElementById('toDate').onclick = ()=>goTo('date');
+
+// ---------- 第5屏：简单日历渲染 ----------
+const calGrid = document.getElementById('calGrid');
+function renderCalendar(year, month){ // month: 1-12
+  calGrid.innerHTML = '';
+  const first = new Date(year, month-1, 1).getDay(); // 0=周日
+  const days  = new Date(year, month, 0).getDate();
+  for(let i=0;i<first;i++){
+    const e = document.createElement('div');
+    e.className = 'cal-cell empty';
+    calGrid.appendChild(e);
+  }
+  for(let d=1; d<=days; d++){
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell';
+    cell.textContent = d;
+    cell.onclick = ()=>{
+      document.querySelectorAll('.cal-cell').forEach(x=>x.classList.remove('pick'));
+      cell.classList.add('pick');
+    };
+    calGrid.appendChild(cell);
+  }
+}
+renderCalendar(2026, 8);
+document.getElementById('toLetter').onclick = ()=>goTo('letter');
+
+// ---------- 第6屏：拆信动画 ----------
+const envelope = document.getElementById('envelope');
+envelope.onclick = ()=>{
+  envelope.style.display = 'none';
+  document.getElementById('envHint').style.display = 'none';
+  document.getElementById('letterBody').style.display = 'block';
+  document.getElementById('finalLine').style.display = 'block';
+  document.getElementById('replay').style.display = 'inline-block';
+};
+document.getElementById('replay').onclick = ()=>{
+  envelope.style.display = 'block';
+  document.getElementById('envHint').style.display = 'block';
+  document.getElementById('letterBody').style.display = 'none';
+  document.getElementById('finalLine').style.display = 'none';
+  document.getElementById('replay').style.display = 'none';
+  goTo('ask');
+};
+</script>
+</body>
+</html>
